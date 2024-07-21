@@ -1,11 +1,25 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,BackgroundTasks
 import uvicorn
+from implementations.DentalStallParser import DentalStallParser
+from implementations.storage.FileStorage import FileStorageInterface
+from implementations.notifications.ConsoleNotification import ConsoleNotification
+from contextlib import asynccontextmanager
+import os
+from pathlib import Path
+@asynccontextmanager
+async def startup(app: FastAPI):
+    os.environ['BASE_DIR'] = str(Path(__file__).parent)
+    yield
+app = FastAPI(lifespan=startup)
 
-app = FastAPI()
 
 
 @app.get("/")
-def home():
+async def home(background_tasks:BackgroundTasks,pages:int=1,proxy=''):
+    
+    dp = DentalStallParser("https://dentalstall.com/shop/page/")
+    await dp.parse(pages,storer=FileStorageInterface("data/parsed_data.json"),notifier=ConsoleNotification(recipients=["abc@abc.com"]),background_tasks=background_tasks)
+
     return {"message": "running awesome"}
 
 
