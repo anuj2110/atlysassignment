@@ -9,7 +9,7 @@ class FileStorageInterface(StorageInterface):
         self.file_path = file_path
 
     def save(self, data, *args):
-        file_path = os.environ['BASE_DIR']+self.file_path
+        file_path = f"{os.environ['BASE_DIR']}/{self.file_path}"
         file_data = self.get_data()
         for key in data:
             file_data[key] = data[key]
@@ -18,9 +18,9 @@ class FileStorageInterface(StorageInterface):
 
     def get_data(self):
         data = None
-        file_path = os.environ['BASE_DIR']+self.file_path
+        file_path = f"{os.environ['BASE_DIR']}/{self.file_path}"
         if not os.path.exists(file_path):
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 json.dump({}, f)
         with open(file_path, "r") as f:
             data = json.load(f)

@@ -6,6 +6,6 @@ class ConsoleNotification(MessagingInteface):
     def __init__(self, recipients):
         self.recipients = recipients
 
-    def send_message(self, message):
+    async def send_message(self, message):
         for recipient in self.recipients:
             print(f"Sending message to {recipient}: {message}")

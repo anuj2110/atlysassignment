@@ -11,12 +11,11 @@ import os
 import aiohttp
 from entities.JsonEntity import JsonEntity
 from configs.redis import RedisClient
-
+import inspect
 
 class DentalStallParser(Parser):
     def __init__(self, url: str):
         self.url = url
-
     async def download_image(self, session, url, file_path):
         if not os.path.isdir(f'{os.environ.get("BASE_DIR")}/data/images'):
             os.makedirs(f'{os.environ.get("BASE_DIR")}/data/images')
@@ -34,9 +33,10 @@ class DentalStallParser(Parser):
             for url, file_path in zip(urls, file_paths):
                 tasks.append(self.download_image(session, url, file_path))
             await asyncio.gather(*tasks)
-        await notifier.send_message("Images downloaded successfully")
+        await notifier.send_message(
+                f"Images downloaded successfully")
 
-    async def parse_single(self, page_no, result, url_file_paths):
+    async def parse_single(self, page_no, proxy, result, url_file_paths):
         redis_client = await RedisClient.get_instance()
         max_retries = 3
         wait_time = 3
@@ -44,7 +44,7 @@ class DentalStallParser(Parser):
         for attempt in range(max_retries):
             try:
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(f"{self.url}{page_no}") as response:
+                    async with session.get(f"{self.url}{page_no}",proxy=proxy) as response:
                         response.raise_for_status()
 
                         soup = BeautifulSoup(await response.text(), "html.parser")
@@ -78,15 +78,16 @@ class DentalStallParser(Parser):
                     print(f"Retrying in {wait_time} seconds...")
                     time.sleep(wait_time)
 
-    async def parse(self, num_pages, storer: StorageInterface, notifier: MessagingInteface, background_tasks: BackgroundTasks):
+    async def parse(self, num_pages, proxy:str,storer: StorageInterface, notifier: MessagingInteface, background_tasks: BackgroundTasks):
         data = {}
         url_file_paths = [[], []]
         async with httpx.AsyncClient() as client:
-            tasks = [self.parse_single(num, data, url_file_paths)
+            tasks = [self.parse_single(num, proxy, data, url_file_paths)
                      for num in range(1, num_pages+1)]
             await asyncio.gather(*tasks, return_exceptions=True)
         storer.save(data)
         await notifier.send_message(
-            f"Scrapped the web pages from 1-{num_pages} pages, downloading images in background. Will notify when done.")
+                f"Scrapped the web pages from 1-{num_pages} pages, got {len(data)} results,downloading images in background. Will notify when done.")
         background_tasks.add_task(
             self.download_images, url_file_paths[0], url_file_paths[1], notifier)
+        return f"Scrapped the web pages from 1-{num_pages} pages, got {len(data)} results,downloading images in background. Will notify when done."
